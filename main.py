@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
-from app.email_service import send_email
 import os
 
 app = FastAPI()
@@ -44,25 +43,3 @@ def chat(req: ChatRequest):
     except Exception as e:
         return {"error": str(e)}
 
-# =======================
-# 📩 FORMULAIRE CONTACT
-# =======================
-
-class ContactRequest(BaseModel):
-    name: str
-    email: str
-    service: str
-    message: str
-
-@app.post("/contact")
-def contact(req: ContactRequest):
-    try:
-        send_email(
-            name=req.name,
-            email=req.email,
-            service=req.service,
-            message=req.message
-        )
-        return {"status": "Message envoyé avec succès"}
-    except Exception as e:
-        return {"error": str(e)}
