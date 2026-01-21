@@ -1,45 +1,52 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from groq import Groq
+from pydantic import BaseModel
 import os
+import requests
 
 app = FastAPI()
 
-# 🌍 CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🔑 Clé API Groq (METTRE DANS .env PLUS TARD)
-client = Groq(api_key="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")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-# =======================
-# 🤖 CHATBOT
-# =======================
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY missing")
 
 class ChatRequest(BaseModel):
     message: str
 
 @app.post("/chat")
 def chat(req: ChatRequest):
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": req.message}
-            ]
-        )
+    url = "https://api.groq.com/openai/v1/chat/completions"
 
-        return {
-            "reply": response.choices[0].message.content
-        }
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
 
-    except Exception as e:
-        return {"error": str(e)}
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": req.message}
+        ],
+        "temperature": 0.7,
+    }
 
+    r = requests.post(url, json=payload, headers=headers)
+
+    if r.status_code != 200:
+        return {"error": r.text}
+
+    data = r.json()
+    return {"reply": data["choices"][0]["message"]["content"]}
+
+@app.get("/")
+def root():
+    return {"status": "Haibot API running"}
